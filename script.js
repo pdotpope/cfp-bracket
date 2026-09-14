@@ -227,7 +227,11 @@ function renderRankings() {
         const trophyButton = document.createElement('button');
         trophyButton.className = 'arrow-button trophy';
         trophyButton.innerHTML = '<img src="/other-logos/goldtrophy.png" alt="";">';
-        trophyButton.disabled = team.champ === true || (team.name !== 'BYU' && team.name !== 'Virginia' && team.name !== 'Alabama' && team.name !== 'Georgia' && team.name !== 'Indiana' && team.name !== 'Ohio State' && team.name !== 'Texas Tech' && team.name !== 'North Texas' && team.name !== 'Tulane' && team.name !== 'James Madison');
+        // Mirror toggleChampionStatus()'s eligibility rule (Ind/Pac-12 can't
+        // hold a conference-champ trophy) instead of a hardcoded team list —
+        // the ranked teams change every week now that rankings.json is
+        // auto-generated, so a fixed name whitelist goes stale immediately.
+        trophyButton.disabled = team.champ === true || team.conference === 'Ind' || team.conference === 'Pac-12';
 
         trophyButton.onclick = (e) => {
             e.stopPropagation();

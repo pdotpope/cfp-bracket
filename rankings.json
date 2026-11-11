@@ -1,14 +1,6 @@
 [
   {
     "id": 1,
-    "name": "Miami",
-    "conference": "ACC",
-    "logo": "/team-logos/miami.png",
-    "record": "8-1",
-    "champ": true
-  },
-  {
-    "id": 2,
     "name": "Georgia",
     "conference": "SEC",
     "logo": "/team-logos/georgia.png",
@@ -16,7 +8,7 @@
     "champ": true
   },
   {
-    "id": 3,
+    "id": 2,
     "name": "Utah",
     "conference": "Big 12",
     "logo": "https://cdn.collegefootballdata.com/logos/500/254.png",
@@ -24,15 +16,7 @@
     "champ": true
   },
   {
-    "id": 4,
-    "name": "Indiana",
-    "conference": "Big Ten",
-    "logo": "/team-logos/indiana.png",
-    "record": "8-1",
-    "champ": true
-  },
-  {
-    "id": 5,
+    "id": 3,
     "name": "Alabama",
     "conference": "SEC",
     "logo": "/team-logos/alabama.png",
@@ -40,47 +24,15 @@
     "champ": false
   },
   {
-    "id": 6,
-    "name": "Kentucky",
-    "conference": "SEC",
-    "logo": "https://cdn.collegefootballdata.com/logos/500/96.png",
-    "record": "7-2",
-    "champ": false
-  },
-  {
-    "id": 7,
-    "name": "Texas",
-    "conference": "SEC",
-    "logo": "/team-logos/texas.png",
-    "record": "7-2",
-    "champ": false
-  },
-  {
-    "id": 8,
+    "id": 4,
     "name": "UCLA",
     "conference": "Big Ten",
     "logo": "https://cdn.collegefootballdata.com/logos/500/26.png",
     "record": "9-0",
-    "champ": false
+    "champ": true
   },
   {
-    "id": 9,
-    "name": "BYU",
-    "conference": "Big 12",
-    "logo": "/team-logos/byu.png",
-    "record": "7-2",
-    "champ": false
-  },
-  {
-    "id": 10,
-    "name": "Ole Miss",
-    "conference": "SEC",
-    "logo": "/team-logos/ole-miss.png",
-    "record": "6-3",
-    "champ": false
-  },
-  {
-    "id": 11,
+    "id": 5,
     "name": "Notre Dame",
     "conference": "Ind",
     "logo": "/team-logos/notre-dame.png",
@@ -88,15 +40,23 @@
     "champ": false
   },
   {
-    "id": 12,
-    "name": "Ohio State",
-    "conference": "Big Ten",
-    "logo": "/team-logos/ohio-state.png",
-    "record": "6-3",
+    "id": 6,
+    "name": "Texas",
+    "conference": "SEC",
+    "logo": "/team-logos/texas.png",
+    "record": "7-2",
     "champ": false
   },
   {
-    "id": 13,
+    "id": 7,
+    "name": "Miami",
+    "conference": "ACC",
+    "logo": "/team-logos/miami.png",
+    "record": "8-1",
+    "champ": true
+  },
+  {
+    "id": 8,
     "name": "Tennessee",
     "conference": "SEC",
     "logo": "/team-logos/tennessee.png",
@@ -104,15 +64,31 @@
     "champ": false
   },
   {
-    "id": 14,
-    "name": "LSU",
-    "conference": "SEC",
-    "logo": "/team-logos/lsu.png",
-    "record": "6-3",
+    "id": 9,
+    "name": "Indiana",
+    "conference": "Big Ten",
+    "logo": "/team-logos/indiana.png",
+    "record": "8-1",
     "champ": false
   },
   {
-    "id": 15,
+    "id": 10,
+    "name": "BYU",
+    "conference": "Big 12",
+    "logo": "/team-logos/byu.png",
+    "record": "7-2",
+    "champ": false
+  },
+  {
+    "id": 11,
+    "name": "Kentucky",
+    "conference": "SEC",
+    "logo": "https://cdn.collegefootballdata.com/logos/500/96.png",
+    "record": "7-2",
+    "champ": false
+  },
+  {
+    "id": 12,
     "name": "Texas Tech",
     "conference": "Big 12",
     "logo": "https://cdn.collegefootballdata.com/logos/500/2641.png",
@@ -120,7 +96,7 @@
     "champ": false
   },
   {
-    "id": 16,
+    "id": 13,
     "name": "Wake Forest",
     "conference": "ACC",
     "logo": "https://cdn.collegefootballdata.com/logos/500/154.png",
@@ -128,7 +104,7 @@
     "champ": false
   },
   {
-    "id": 17,
+    "id": 14,
     "name": "Houston",
     "conference": "Big 12",
     "logo": "https://cdn.collegefootballdata.com/logos/500/248.png",
@@ -136,15 +112,7 @@
     "champ": false
   },
   {
-    "id": 18,
-    "name": "Missouri",
-    "conference": "SEC",
-    "logo": "/team-logos/missouri.png",
-    "record": "6-3",
-    "champ": false
-  },
-  {
-    "id": 19,
+    "id": 15,
     "name": "Iowa",
     "conference": "Big Ten",
     "logo": "https://cdn.collegefootballdata.com/logos/500/2294.png",
@@ -152,31 +120,7 @@
     "champ": false
   },
   {
-    "id": 20,
-    "name": "USC",
-    "conference": "Big Ten",
-    "logo": "https://cdn.collegefootballdata.com/logos/500/30.png",
-    "record": "7-2",
-    "champ": false
-  },
-  {
-    "id": 21,
-    "name": "South Carolina",
-    "conference": "SEC",
-    "logo": "/team-logos/south-carolina.png",
-    "record": "6-3",
-    "champ": false
-  },
-  {
-    "id": 22,
-    "name": "Arizona",
-    "conference": "Big 12",
-    "logo": "https://cdn.collegefootballdata.com/logos/500/12.png",
-    "record": "7-2",
-    "champ": false
-  },
-  {
-    "id": 23,
+    "id": 16,
     "name": "Oregon",
     "conference": "Big Ten",
     "logo": "/team-logos/oregon.png",
@@ -184,19 +128,75 @@
     "champ": false
   },
   {
-    "id": 24,
-    "name": "Florida",
+    "id": 17,
+    "name": "South Carolina",
     "conference": "SEC",
-    "logo": "/team-logos/florida.png",
-    "record": "5-4",
+    "logo": "/team-logos/south-carolina.png",
+    "record": "6-3",
     "champ": false
   },
   {
-    "id": 25,
+    "id": 18,
+    "name": "USC",
+    "conference": "Big Ten",
+    "logo": "https://cdn.collegefootballdata.com/logos/500/30.png",
+    "record": "7-2",
+    "champ": false
+  },
+  {
+    "id": 19,
+    "name": "Ole Miss",
+    "conference": "SEC",
+    "logo": "/team-logos/ole-miss.png",
+    "record": "6-3",
+    "champ": false
+  },
+  {
+    "id": 20,
+    "name": "Ohio State",
+    "conference": "Big Ten",
+    "logo": "/team-logos/ohio-state.png",
+    "record": "6-3",
+    "champ": false
+  },
+  {
+    "id": 21,
+    "name": "LSU",
+    "conference": "SEC",
+    "logo": "/team-logos/lsu.png",
+    "record": "6-3",
+    "champ": false
+  },
+  {
+    "id": 22,
+    "name": "Missouri",
+    "conference": "SEC",
+    "logo": "/team-logos/missouri.png",
+    "record": "6-3",
+    "champ": false
+  },
+  {
+    "id": 23,
+    "name": "Arizona",
+    "conference": "Big 12",
+    "logo": "https://cdn.collegefootballdata.com/logos/500/12.png",
+    "record": "7-2",
+    "champ": false
+  },
+  {
+    "id": 24,
     "name": "Boise State",
     "conference": "Pac-12",
     "logo": "/team-logos/boise-state.png",
     "record": "8-1",
     "champ": true
+  },
+  {
+    "id": 25,
+    "name": "Oklahoma State",
+    "conference": "Big 12",
+    "logo": "https://cdn.collegefootballdata.com/logos/500/197.png",
+    "record": "6-3",
+    "champ": false
   }
 ]

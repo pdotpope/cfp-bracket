@@ -9,6 +9,11 @@ on:
     # at 1am ET instead — irrelevant here since no CFP rankings exist then.
     # GitHub may also start scheduled runs late under load; that's fine.
     - cron: '0 5 * * 3'
+    # Retry Thursday 05:00 UTC (Wednesday night ET). CFBD sometimes hasn't
+    # ingested Tuesday's committee release by the first run, and that run
+    # then silently re-writes last week's poll. The retry is a no-op when
+    # the first run already got the new rankings (nothing to commit).
+    - cron: '0 5 * * 4'
   workflow_dispatch: {}  # allows a manual "Run workflow" from the Actions tab
 
 permissions:
@@ -38,18 +43,34 @@ jobs:
           CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
         run: python update_rankings.py
 
+      # Detect changes before rendering the preview image: the image embeds
+      # the run date, so rendering unconditionally would produce a commit
+      # on every run (including the Thursday retry) even with identical
+      # rankings. `git status --porcelain` rather than `git diff` because
+      # the updater may add new, untracked logo files to team-logos/.
+      - name: Check for ranking changes
+        id: changes
+        run: |
+          if [ -z "$(git status --porcelain -- rankings.json team-logos)" ]; then
+            echo "rankings.json and team-logos unchanged; nothing to do."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Re-draw the "if the playoff started today" link-preview card from
+      # the new rankings; also bumps its ?v= cache-buster in index.html.
+      - name: Render link-preview image
+        if: steps.changes.outputs.changed == 'true'
+        run: python make_og_image.py
+
       # Commit straight to main so the live site updates with no manual
       # step; the git log serves as the history of automated updates.
-      # Skips the commit entirely when the rankings didn't change, so
-      # no-op runs don't produce empty commits.
       - name: Commit updated rankings
+        if: steps.changes.outputs.changed == 'true'
         run: |
-          if git diff --quiet -- rankings.json; then
-            echo "rankings.json unchanged; nothing to commit."
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add rankings.json
+          git add rankings.json team-logos og-image.png index.html
           git commit -m "Update weekly team rankings [automated]"
           git push

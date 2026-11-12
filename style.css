@@ -128,19 +128,6 @@ body {
     flex: 1;
 }
 
-.footer {
-    display: flex;
-    justify-content: center;
-    text-align: center;
-    margin-top: auto;
-    color: #999;
-    font-size: 0.8em;
-    background: #2a2a2a;
-    padding: 15px;
-    border-radius: 0;
-    border-top: 1px solid #333;
-}
-
 /* Rankings view - centered */
 #rankings-view {
     width: 100%;
@@ -709,4 +696,311 @@ body {
         font-size: 12px;
         line-height: 20px;
     }
+}
+/* ------------------------------------------------------------------ */
+/* Rankings row (number + card); formerly inline styles set in JS      */
+/* ------------------------------------------------------------------ */
+.ranking-row {
+    display: flex;
+    align-items: center;
+}
+
+.load-error {
+    color: #c9c9c9;
+    text-align: center;
+    padding: 30px 10px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Share bar (top of the bracket panel)                               */
+/* ------------------------------------------------------------------ */
+.share-bar {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.share-button {
+    background: #333;
+    color: #e0e0e0;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.share-button:hover:not(:disabled) {
+    border-color: #c38d13;
+}
+
+.share-button:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+
+/* Primary call to action: gold, so sharing is the obvious next step. */
+.share-button.primary {
+    background: #c38d13;
+    border-color: #c38d13;
+    color: #1a1a1a;
+}
+
+.share-button.primary:hover {
+    background: #d9a12a;
+}
+
+.share-button.subtle {
+    background: transparent;
+    color: #999;
+}
+
+/* Watermark appended only inside the html2canvas clone (see saveImage). */
+.image-watermark {
+    text-align: center;
+    color: #c38d13;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    margin-top: 6px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Toast                                                              */
+/* ------------------------------------------------------------------ */
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translate(-50%, 20px);
+    max-width: calc(100vw - 32px);
+    background: #333;
+    color: #e0e0e0;
+    border: 1px solid #c38d13;
+    border-radius: 6px;
+    padding: 10px 16px;
+    font-size: 14px;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    z-index: 2000;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+/* ------------------------------------------------------------------ */
+/* Desktop: rankings and bracket side by side                         */
+/* ------------------------------------------------------------------ */
+/*
+ * Below 1280px the tabbed, one-view-at-a-time layout is unchanged. Above
+ * it there's room for both, so the tabs are hidden and both views are
+ * forced visible regardless of which one switchView() marked active.
+ * Widths are budgeted so rankings (360) + gap + bracket (4 x 180px
+ * matchups) fit in the 1280px minimum.
+ */
+/* Column headers replace the tabs on desktop; hidden on smaller screens,
+   where the tab bar already labels the single visible view. */
+.view-header {
+    display: none;
+}
+
+@media (min-width: 1280px) {
+    .tab-navigation {
+        display: none;
+    }
+
+    /* Mirrors the active .tab-button look so both layouts read as the
+       same app. Underline spans the header text only, not the column. */
+    .view-header {
+        display: block;
+        width: fit-content;
+        margin: 0 auto 16px;
+        padding: 0 24px 10px;
+        color: #c38d13;
+        font-size: 1.1em;
+        font-weight: 600;
+        letter-spacing: 2px;
+        border-bottom: 3px solid #c38d13;
+    }
+
+    .container {
+        display: grid;
+        grid-template-columns: 360px auto;
+        justify-content: center;
+        align-items: start;
+        gap: 24px;
+        max-width: 1440px;
+    }
+
+    .view-section,
+    .view-section.active {
+        display: block;
+        opacity: 1;
+        animation: none;
+    }
+
+    #rankings-view .rankings {
+        max-width: 360px;
+        min-width: 0;
+    }
+
+    /* Keep the bracket in view while scrolling through all 25 teams, so
+       each reorder visibly updates the bracket beside it. */
+    /* `top` must equal the column's resting offset (the .container's
+       30px top padding; the tab bar is hidden at this width). Any smaller
+       value lets the bracket slide up by the difference before it locks,
+       which reads as the bracket "scrolling slightly". */
+    #bracket-view {
+        position: sticky;
+        top: 30px;
+    }
+
+    .matchup {
+        width: 180px;
+    }
+
+    .bracket-container {
+        overflow: visible;
+    }
+}
+
+/* Applied only inside the html2canvas clone used by "Save image":
+   html2canvas can't render background-clip:text, so the shimmering gold
+   titles would otherwise come out as solid gold boxes. Transitions are
+   disabled so the champion card is captured fully faded in. */
+.capturing .champion-display .champion-name,
+.capturing .round-title {
+    background: none !important;
+    -webkit-text-fill-color: #c38d13 !important;
+    color: #c38d13 !important;
+    animation: none !important;
+}
+
+.capturing .champion-display {
+    transition: none !important;
+}
+
+/* Keep all three share-bar buttons on one row on phones. */
+@media (max-width: 480px) {
+    #bracket-view .share-bar {
+        gap: 6px;
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .share-button {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* Rankings instructions: one quiet italic line, no box. */
+/* Overrides the older, roomier .instructions block style above. */
+.rankings .instructions {
+    margin: 0 0 12px;
+    padding: 0 4px;
+    background: none;
+    font-size: 12.5px;
+    font-style: italic;
+    line-height: 1.5;
+    color: #999;
+}
+
+/* ------------------------------------------------------------------ */
+/* Actions box: its own panel beneath the bracket                     */
+/* ------------------------------------------------------------------ */
+.share-bar {
+    /* No explicit width: it stretches to the bracket column's width
+       (see #bracket-view below), so both panels line up edge to edge. */
+    margin: 16px 0 0;
+    padding: 12px 16px;
+    background: #2a2a2a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Stack bracket and actions box vertically. The base .view-section.active
+   rule lays children out in a row, which would put the box beside the
+   bracket on tablets/phones. Column direction also stops the bracket
+   panel from stretching to the viewport height on short pages. */
+#bracket-view.active {
+    flex-direction: column;
+    align-items: stretch;
+    /* Shrink-wrap the column to the bracket's width so the stretched
+       actions box below matches it exactly. */
+    width: fit-content;
+    margin: 0 auto;
+}
+
+/* Phones: the bracket panel is full width (it scrolls horizontally), so
+   the column and actions box are too. */
+@media (max-width: 768px) {
+    #bracket-view.active {
+        width: 100%;
+    }
+}
+
+/* Desktop forces every .view-section to display:block (see the 1280px
+   block above); restore the column layout for the bracket view. */
+@media (min-width: 1280px) {
+    #bracket-view,
+    #bracket-view.active {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+/* X follow link: icon + handle. It's an <a>, so reset link styling. */
+.x-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+}
+
+.x-button:hover {
+    text-decoration: none;
+    color: #e0e0e0;
+}
+
+/* Phones: Share / Save / Reset fill one row, so the X link takes its own
+   full-width row beneath them instead of wrapping awkwardly. */
+@media (max-width: 480px) {
+    .share-bar .x-button {
+        flex-basis: 100%;
+        justify-content: center;
+    }
+}
+
+/* Disable the rubber-band "bounce" when scrolling past the top/bottom of
+   the page (iOS Safari 16+, macOS trackpads, Chrome pull-to-refresh).
+   Set on both html and body because browsers differ on which element
+   owns the root scroller. The horizontally scrolling mobile bracket gets
+   it too so swiping past its last round doesn't bounce or trigger the
+   browser's back-swipe gesture. */
+html,
+body,
+.bracket {
+    overscroll-behavior: none;
+}
+
+/* Reset Rankings: same look as Reset Bracket, spanning the rankings
+   column between the instructions and the first team (Reset Bracket's
+   -10px top margin would collide with the instructions here). */
+.reset-rankings {
+    display: block;
+    width: 100%;
+    margin: 0 0 12px;
 }

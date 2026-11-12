@@ -11,7 +11,7 @@
     "id": 2,
     "name": "Utah",
     "conference": "Big 12",
-    "logo": "https://cdn.collegefootballdata.com/logos/500/254.png",
+    "logo": "/team-logos/utah.png",
     "record": "9-0",
     "champ": true
   },
@@ -27,7 +27,7 @@
     "id": 4,
     "name": "UCLA",
     "conference": "Big Ten",
-    "logo": "https://cdn.collegefootballdata.com/logos/500/26.png",
+    "logo": "/team-logos/ucla.png",
     "record": "9-0",
     "champ": true
   },
@@ -83,7 +83,7 @@
     "id": 11,
     "name": "Kentucky",
     "conference": "SEC",
-    "logo": "https://cdn.collegefootballdata.com/logos/500/96.png",
+    "logo": "/team-logos/kentucky.png",
     "record": "7-2",
     "champ": false
   },
@@ -91,7 +91,7 @@
     "id": 12,
     "name": "Texas Tech",
     "conference": "Big 12",
-    "logo": "https://cdn.collegefootballdata.com/logos/500/2641.png",
+    "logo": "/team-logos/texas-tech.png",
     "record": "8-1",
     "champ": false
   },
@@ -99,7 +99,7 @@
     "id": 13,
     "name": "Wake Forest",
     "conference": "ACC",
-    "logo": "https://cdn.collegefootballdata.com/logos/500/154.png",
+    "logo": "/team-logos/wake-forest.png",
     "record": "8-1",
     "champ": false
   },
@@ -107,7 +107,7 @@
     "id": 14,
     "name": "Houston",
     "conference": "Big 12",
-    "logo": "https://cdn.collegefootballdata.com/logos/500/248.png",
+    "logo": "/team-logos/houston.png",
     "record": "7-2",
     "champ": false
   },
@@ -115,7 +115,7 @@
     "id": 15,
     "name": "Iowa",
     "conference": "Big Ten",
-    "logo": "https://cdn.collegefootballdata.com/logos/500/2294.png",
+    "logo": "/team-logos/iowa.png",
     "record": "7-2",
     "champ": false
   },
@@ -139,7 +139,7 @@
     "id": 18,
     "name": "USC",
     "conference": "Big Ten",
-    "logo": "https://cdn.collegefootballdata.com/logos/500/30.png",
+    "logo": "/team-logos/usc.png",
     "record": "7-2",
     "champ": false
   },
@@ -179,7 +179,7 @@
     "id": 23,
     "name": "Arizona",
     "conference": "Big 12",
-    "logo": "https://cdn.collegefootballdata.com/logos/500/12.png",
+    "logo": "/team-logos/arizona.png",
     "record": "7-2",
     "champ": false
   },
@@ -195,7 +195,7 @@
     "id": 25,
     "name": "Oklahoma State",
     "conference": "Big 12",
-    "logo": "https://cdn.collegefootballdata.com/logos/500/197.png",
+    "logo": "/team-logos/oklahoma-state.png",
     "record": "6-3",
     "champ": false
   }

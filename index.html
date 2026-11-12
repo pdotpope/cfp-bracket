@@ -3,12 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CFP Bracket</title>
+    <title>CFP Bracket Predictor | Build Your 12-Team College Football Playoff</title>
+    <meta name="description" content="Rank the top 25, pick conference champions, and build your 12-team College Football Playoff bracket. Updated every week with the latest CFP rankings. Share your picks.">
+    <link rel="canonical" href="https://cfp-bracket.pdot.dev/">
+    <meta name="theme-color" content="#1a1a1a">
+
+    <!-- Link previews (iMessage, X, Discord, Slack, etc.). The site is static,
+         so every shared link shows this same card; per-bracket detail is in
+         the "Save image" PNG instead. og:image must be an absolute URL. -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="CFP Bracket">
+    <meta property="og:url" content="https://cfp-bracket.pdot.dev/">
+    <meta property="og:title" content="CFP Bracket Predictor">
+    <meta property="og:description" content="Rank the top 25 and build your 12-team College Football Playoff bracket. Updated weekly with the latest CFP rankings.">
+    <meta property="og:image" content="https://cfp-bracket.pdot.dev/og-image.png?v=20261112">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="CFP Bracket Predictor: build your 12-team playoff bracket">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="CFP Bracket Predictor">
+    <meta name="twitter:description" content="Rank the top 25 and build your 12-team College Football Playoff bracket. Updated weekly.">
+    <meta name="twitter:image" content="https://cfp-bracket.pdot.dev/og-image.png?v=20261112">
+    <meta name="twitter:site" content="@BuildYourCFP">
+
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="/media/lilp.png" type="image/x-icon">
+    <!-- Icons are generated from other-logos/favicon-logo.png (cropped to a
+         centered square; background left transparent). 32px for browser
+         tabs, 512px for high-DPI and Android, 180px on the site's dark
+         background for iOS home screens (iOS paints transparency black). -->
+    <link rel="icon" href="/other-logos/favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="icon" href="/other-logos/favicon-512.png" type="image/png" sizes="512x512">
+    <link rel="apple-touch-icon" href="/other-logos/apple-touch-icon.png">
+
+    <!-- GoatCounter analytics: cookieless, so no consent banner is needed.
+         Dashboard: https://cfpbracket.goatcounter.com. Custom events
+         (share-link, save-image, champion/<team>) are sent by trackEvent()
+         in script.js. -->
+    <script data-goatcounter="https://cfpbracket.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 </head>
 <body>
-    <!-- Tab Navigation -->
+    <!-- Tab navigation: phones/tablets only. Desktop shows both views side
+         by side and hides this via CSS. -->
     <div class="tab-navigation">
         <button class="tab-button active" data-view="rankings" onclick="switchView('rankings')">RANKINGS</button>
         <button class="tab-button" data-view="bracket" onclick="switchView('bracket')">BRACKET</button>
@@ -17,19 +52,28 @@
     <div class="container">
         <!-- Rankings View -->
         <div class="view-section active" id="rankings-view">
+            <!-- Desktop-only column header; phones/tablets use the tabs. -->
+            <h2 class="view-header">RANKINGS</h2>
             <div class="rankings">
+                <p class="instructions">
+                    Drag teams or use the arrows to re-rank<br>
+                    Tap the trophy to crown a conference champion
+                </p>
+                <button class="reset-button reset-rankings" onclick="resetRankings()">Reset Rankings</button>
                 <div id="rankings-list"></div>
             </div>
         </div>
 
         <!-- Bracket View -->
         <div class="view-section" id="bracket-view">
+            <h2 class="view-header">BRACKET</h2>
             <div class="bracket">
                 <div class="bracket-container">
                     <div class="round">
                         <div class="round-title">First Round</div>
                         <div id="first-round"></div>
-                        <input type="button" class="reset-button" onclick="resetBracket()" value="Reset Bracket">
+                        <!-- Left out of the "Save image" PNG. -->
+                        <button class="reset-button" onclick="resetBracket()" data-html2canvas-ignore>Reset Bracket</button>
                     </div>
                     <div class="round">
                         <div class="round-title quarters">Quarterfinals</div>
@@ -47,16 +91,28 @@
                             National<br>Championship
                         </div>
                         <div id="championship"></div>
-                        <div id="champion-display" class="champion-display">
-                        </div> 
-                    </div>                
+                        <div id="champion-display" class="champion-display"></div>
+                    </div>
                 </div>
+            </div>
+            <!-- Actions live in their own panel outside .bracket, so they are
+                 naturally excluded from the "Save image" capture. -->
+            <div class="share-bar">
+                <button class="share-button primary" onclick="shareLink()">Share bracket</button>
+                <button class="share-button" id="save-image-button" onclick="saveImage()">Save image</button>
+                <a href="https://x.com/BuildYourCFP" target="_blank" rel="noopener"
+                   class="share-button subtle x-button" title="Follow on X for weekly rankings">
+                    <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" fill="currentColor">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                    </svg>
+                    <span>@BuildYourCFP</span>
+                </a>
             </div>
         </div>
     </div>
-    <footer class="footer">
-        <a href="https://github.com/pdotpope/cfp-bracket" target="_blank">pdotpope/cfp-bracket</a>
-    </footer>
-    <script src="script.js"></script>    
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="script.js"></script>
 </body>
 </html>

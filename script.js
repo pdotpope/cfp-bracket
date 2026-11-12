@@ -1,398 +1,324 @@
-// View switching function
+/*
+ * CFP Bracket — client-side state, rendering, and sharing.
+ *
+ * State model
+ * -----------
+ * The whole app state is two things:
+ *   - `rankings`: ordered array of team objects (copied from rankings.json,
+ *     so toggling `champ` never mutates the fetched data).
+ *   - `picks`: 11 slots, one per playoff game, each holding the *name* of
+ *     the team picked to win that game (or null).
+ *
+ * Every matchup is derived from those two on each render (see
+ * computeGames). Storing picks by team name rather than by bracket
+ * position means a pick survives any ranking change that keeps that team
+ * in the same game, and is pruned automatically when it doesn't — so a
+ * later round can never show a team that no longer won the earlier game.
+ *
+ * Game layout (indices into `picks`)
+ * ----------------------------------
+ *   0-3  First round:   8v9, 5v12, 7v10, 6v11   (seeds hosted by higher)
+ *   4-7  Quarterfinals: 1 / 4 / 2 / 3 seed vs winner of game 0 / 1 / 2 / 3
+ *   8-9  Semifinals:    W4 v W5, W6 v W7
+ *   10   Championship:  W8 v W9
+ */
+
+const SITE_URL = 'https://cfp-bracket.pdot.dev/';
+const STORAGE_KEY = 'cfp-bracket-state-v1';
+const GAME_COUNT = 11;
+
+// Seed indices (0-based) for each first-round game: [higher, lower].
+const FIRST_ROUND_SEEDS = [[7, 8], [4, 11], [6, 9], [5, 10]];
+// Seed index of the bye team hosting each quarterfinal (games 4-7).
+const QUARTERFINAL_BYE_SEEDS = [0, 3, 1, 2];
+
+// Conferences that can never hold a conference-champion auto-bid.
+// Independents have no conference title game. (The Pac-12 was excluded
+// while it was a two-team league in 2024-25; it is a full conference
+// again from 2026, and update_rankings.py can award it a champion.)
+const NON_CHAMP_CONFERENCES = new Set(['Ind']);
+
+let rankings = [];
+let picks = Array(GAME_COUNT).fill(null);
+// Fingerprint of the rankings.json currently served; used to tell whether a
+// returning visitor's saved bracket was built on this week's rankings.
+let dataFingerprint = '';
+// This week's rankings exactly as served by rankings.json; the baseline
+// that "Reset Rankings" restores. Never mutated: copies are handed out.
+let officialRankings = [];
+
+/* ------------------------------------------------------------------ */
+/* View switching (mobile/tablet tabs; desktop shows both via CSS)     */
+/* ------------------------------------------------------------------ */
+
 function switchView(viewName) {
-    // Hide all views
     document.querySelectorAll('.view-section').forEach(section => {
         section.classList.remove('active');
     });
-    
-    // Remove active class from all tabs
     document.querySelectorAll('.tab-button').forEach(button => {
         button.classList.remove('active');
     });
-    
-    // Show selected view
     document.getElementById(viewName + '-view').classList.add('active');
-    
-    // Activate selected tab
     document.querySelector(`[data-view="${viewName}"]`).classList.add('active');
 }
 
-// Replace your hardcoded initialRankings with:
-let initialRankings = [];
+/* ------------------------------------------------------------------ */
+/* Seeding and bracket derivation                                     */
+/* ------------------------------------------------------------------ */
 
-// Load rankings from JSON file
-fetch('/rankings.json')
-    .then(response => response.json())
-    .then(data => {
-        initialRankings = data;
-        rankings = [...initialRankings];
-        renderRankings();
-        updateBracket();
-    })
-    .catch(error => {
-        console.error('Failed to load rankings, using fallback data');
-        // Your current hardcoded data as fallback
-        initialRankings = [/* your current data */];
-        rankings = [...initialRankings];
-        renderRankings();
-        updateBracket();
-    });
-  
-  let rankings = [...initialRankings];
-  let bracket = {
-      firstRound: [],
-      quarterfinals: [],
-      semifinals: [
-          { team1: null, team2: null },
-          { team1: null, team2: null }
-      ],
-      championship: null,
-      champion: null
-  };
-
-
-
-  
-// Modified calculateSeeds - Top 5 conference champions must be in the playoff
+// 12-team format: the five highest-ranked conference champions are
+// guaranteed a spot, the rest are filled by ranking, and all 12 are then
+// seeded straight by ranking (no champion-only byes).
 function calculateSeeds() {
-    let seeds = [];
-    
-    // Collect all conference champions sorted by ranking
-    let confChamps = rankings.filter(team => team.champ);
-    
-    // Only the top 5 conference champions are guaranteed playoff spots
-    let guaranteedChamps = confChamps.slice(0, 5);
-    
-    // Start with all teams in top 12 that aren't being replaced
-    let teamsInPlayoff = [];
-    
-    // First, add all top 5 conference champions in order of their ranking
-    guaranteedChamps.forEach(champ => {
-        teamsInPlayoff.push(champ);
+    const guaranteedChamps = rankings.filter(team => team.champ).slice(0, 5);
+    const playoffTeams = [...guaranteedChamps];
+
+    for (const team of rankings) {
+        if (playoffTeams.length >= 12) break;
+        if (!playoffTeams.includes(team)) playoffTeams.push(team);
+    }
+
+    playoffTeams.sort((a, b) => rankings.indexOf(a) - rankings.indexOf(b));
+    return playoffTeams.map((team, index) => ({ ...team, seed: index + 1 }));
+}
+
+// Builds all 11 games from the current seeds and picks. Also prunes any
+// pick whose team is no longer in that game, which is what keeps later
+// rounds consistent after an earlier pick or the rankings change.
+function computeGames() {
+    const seeds = calculateSeeds();
+    const games = [];
+
+    const resolveWinner = (gameIndex) => {
+        const game = games[gameIndex];
+        const pickedName = picks[gameIndex];
+        if (!pickedName) return null;
+        if (game.a?.name === pickedName) return game.a;
+        if (game.b?.name === pickedName) return game.b;
+        picks[gameIndex] = null; // stale pick: that team isn't in this game anymore
+        return null;
+    };
+
+    FIRST_ROUND_SEEDS.forEach(([hi, lo]) => {
+        games.push({ a: seeds[hi] || null, b: seeds[lo] || null });
     });
-    
-    // Then add remaining highest-ranked teams until we have 12
-    for (let i = 0; i < rankings.length && teamsInPlayoff.length < 12; i++) {
-        let team = rankings[i];
-        // Only add if not already in the playoff
-        if (!teamsInPlayoff.some(t => t.id === team.id)) {
-            teamsInPlayoff.push(team);
+    QUARTERFINAL_BYE_SEEDS.forEach((byeSeed, i) => {
+        games.push({ a: seeds[byeSeed] || null, b: null, feederB: i });
+    });
+
+    // Fill games in order so each round sees the already-pruned winners
+    // of the round before it.
+    for (let i = 0; i < GAME_COUNT; i++) {
+        if (i >= 4 && i <= 7) {
+            games[i].b = resolveWinner(i - 4);
+        } else if (i === 8 || i === 9) {
+            const first = 4 + (i - 8) * 2;
+            games.push({ a: resolveWinner(first), b: resolveWinner(first + 1) });
+        } else if (i === 10) {
+            games.push({ a: resolveWinner(8), b: resolveWinner(9) });
         }
     }
-    
-    // Now sort the 12 playoff teams by their original ranking
-    teamsInPlayoff.sort((a, b) => {
-        let rankA = rankings.findIndex(t => t.id === a.id);
-        let rankB = rankings.findIndex(t => t.id === b.id);
-        return rankA - rankB;
-    });
-    
-    // Assign seeds based on sorted order
-    seeds = teamsInPlayoff.map((team, index) => ({
-        ...team,
-        seed: index + 1
-    }));
-
-    return seeds;
+    const champion = resolveWinner(10);
+    return { games, champion };
 }
-  
-  // Update bracket based on current seeds
-  function updateBracket() {
-      const seeds = calculateSeeds();
-      
-      // Set up first round matchups according to specified pattern
-      bracket.firstRound = [
-          { higher: seeds[7], lower: seeds[8] },    // 8 vs 9
-          { higher: seeds[4], lower: seeds[11] },   // 5 vs 12
-          { higher: seeds[6], lower: seeds[9] },    // 7 vs 10
-          { higher: seeds[5], lower: seeds[10] }    // 6 vs 11
-      ];
-  
-      // Reset later rounds when bracket is updated
-      bracket.quarterfinals = [
-          { awaitingWinner: true, higher: seeds[0] }, // 1 seed awaiting winner
-          { awaitingWinner: true, higher: seeds[3] }, // 4 seed awaiting winner
-          { awaitingWinner: true, higher: seeds[1] }, // 2 seed awaiting winner
-          { awaitingWinner: true, higher: seeds[2] }  // 3 seed awaiting winner
-      ];
-      bracket.semifinals = [
-          { team1: null, team2: null },
-          { team1: null, team2: null }
-      ];
-      bracket.championship = null;
-  
-      renderBracket();
-  }
 
-// Add this to the existing script
+function pickWinner(gameIndex, side) {
+    const { games } = computeGames();
+    const team = side === 'a' ? games[gameIndex].a : games[gameIndex].b;
+    if (!team) return; // empty slot: nothing to advance yet
 
-// Function to move team up in rankings
-function moveTeamUp(index) {
-    if (index > 0) {
-        const newRankings = [...rankings];
-        [newRankings[index], newRankings[index - 1]] = [newRankings[index - 1], newRankings[index]];
-        rankings = newRankings;
-        renderRankings();
-        updateBracket();
+    picks[gameIndex] = team.name;
+    renderBracket();
+    persistState();
+
+    if (gameIndex === GAME_COUNT - 1) {
+        trackEvent('champion/' + slugify(team.name), `Champion pick: ${team.name}`);
     }
 }
 
-// Function to move team down in rankings
-function moveTeamDown(index) {
-    if (index < rankings.length - 1) {
-        const newRankings = [...rankings];
-        [newRankings[index], newRankings[index + 1]] = [newRankings[index + 1], newRankings[index]];
-        rankings = newRankings;
-        renderRankings();
-        updateBracket();
-    }
+// Restores this week's official order and conference champions. Picks are
+// left alone: computeGames() prunes any that the restored seeding makes
+// impossible, and keeps the ones that still hold.
+function resetRankings() {
+    rankings = officialRankings.map(t => ({ ...t }));
+    onRankingsChanged();
 }
 
-// Function to toggle conference champion status
-function toggleChampionStatus(index) {
-    const team = rankings[index];
-    
-    // Don't allow changing champion status for Ind or Pac-12
-    if (team.conference === 'Ind' || team.conference === 'Pac-12') {
-        return;
-    }
+function resetBracket() {
+    picks = Array(GAME_COUNT).fill(null);
+    renderBracket();
+    persistState();
+}
 
-    // Only allow setting a new champion, not removing an existing one
-    if (!team.champ) {
-        // Set this team as conference champion and remove from others in same conference
-        for (let i = 0; i < rankings.length; i++) {
-            if (rankings[i].conference === team.conference) {
-                rankings[i].champ = false;
-            }
-        }
+/* ------------------------------------------------------------------ */
+/* Rankings mutations                                                 */
+/* ------------------------------------------------------------------ */
+
+function onRankingsChanged() {
+    renderRankings();
+    renderBracket();
+    persistState();
+}
+
+function moveTeam(fromIndex, toIndex) {
+    if (toIndex < 0 || toIndex >= rankings.length || fromIndex === toIndex) return;
+    const [team] = rankings.splice(fromIndex, 1);
+    rankings.splice(toIndex, 0, team);
+    onRankingsChanged();
+}
+
+// Makes `team` its conference's champion, clearing any other champion from
+// the same conference. With `allowUnset`, clicking an existing champion
+// clears it (used by the desktop right-click shortcut).
+function setConferenceChampion(team, allowUnset = false) {
+    if (NON_CHAMP_CONFERENCES.has(team.conference)) return;
+
+    if (team.champ) {
+        if (!allowUnset) return;
+        team.champ = false;
+    } else {
+        rankings.forEach(t => {
+            if (t.conference === team.conference) t.champ = false;
+        });
         team.champ = true;
-        
-        renderRankings();
-        updateBracket();
     }
+    onRankingsChanged();
 }
 
-// Modify renderRankings to add right-click event for conference champion selection
+/* ------------------------------------------------------------------ */
+/* Rendering                                                          */
+/* ------------------------------------------------------------------ */
+
+// Shared fallback for any logo that fails to load (e.g. a CDN hiccup on
+// an auto-generated logo URL) so a broken-image icon never shows.
+const LOGO_FALLBACK = '/other-logos/notrophy.png';
+const logoImg = (src, cls) =>
+    `<img src="${src}" alt="" class="${cls}" onerror="this.onerror=null;this.src='${LOGO_FALLBACK}'">`;
+
 function renderRankings() {
     const rankingsList = document.getElementById('rankings-list');
     rankingsList.innerHTML = '';
-    
-    const seeds = calculateSeeds();
+
+    const seededNames = new Set(calculateSeeds().map(t => t.name));
 
     rankings.forEach((team, index) => {
+        const inPlayoff = seededNames.has(team.name);
+        const canBeChamp = !NON_CHAMP_CONFERENCES.has(team.conference);
+
         const rankingNumber = document.createElement('div');
         rankingNumber.className = 'team-number';
         rankingNumber.textContent = index + 1;
-        
-        teamSeed = seeds.findIndex((seed) => seed.id === team.id);
-
-        if (teamSeed < 0) {
-            rankingNumber.style.color = '#999';
-        }
+        if (!inPlayoff) rankingNumber.style.color = '#999';
 
         const teamCard = document.createElement('div');
-        teamCard.className = `team-card ${teamSeed < 0 ? 'non-playoff' : ''}`;
+        teamCard.className = `team-card ${inPlayoff ? '' : 'non-playoff'}`;
         teamCard.draggable = true;
         teamCard.dataset.index = index;
         teamCard.dataset.conference = team.conference;
 
-        // Determine trophy display based on conference champion status
-        let trophy = '';
-        
-        if (team.champ) {
-            trophy = '/other-logos/goldtrophy.png';
-        } else {
-            trophy = '/other-logos/notrophy.png';
-        }
-
+        const trophy = team.champ ? '/other-logos/goldtrophy.png' : '/other-logos/notrophy.png';
         teamCard.innerHTML = `
-            <div class="team-logo">
-                <img src="${team.logo}" alt="${team.name} logo" 
-                     onerror="this.src='/team-logos/placeholder.png'">
-            </div>
+            <div class="team-logo">${logoImg(team.logo, '')}</div>
             <div class="team-info">
                 <div class="team-name">${team.name}</div>
-                <div class="conference-info"> 
+                <div class="conference-info">
                     <div class="team-record">(${team.record})</div>
                     <div class="team-conference">${team.conference}</div>
-                    <div class="trophy"><img src="${trophy}" alt="Trophy"></div>
+                    <div class="trophy"><img src="${trophy}" alt=""></div>
                 </div>
             </div>
         `;
 
-        // Add arrow buttons container
         const arrowButtons = document.createElement('div');
         arrowButtons.className = 'arrow-buttons';
-        
+
         const trophyButton = document.createElement('button');
         trophyButton.className = 'arrow-button trophy';
-        trophyButton.innerHTML = '<img src="/other-logos/goldtrophy.png" alt="";">';
-        // Mirror toggleChampionStatus()'s eligibility rule (Ind/Pac-12 can't
-        // hold a conference-champ trophy) instead of a hardcoded team list —
-        // the ranked teams change every week now that rankings.json is
-        // auto-generated, so a fixed name whitelist goes stale immediately.
-        trophyButton.disabled = team.champ === true || team.conference === 'Ind' || team.conference === 'Pac-12';
-
+        trophyButton.title = 'Make conference champion';
+        trophyButton.innerHTML = '<img src="/other-logos/goldtrophy.png" alt="Make conference champion">';
+        trophyButton.disabled = team.champ === true || !canBeChamp;
         trophyButton.onclick = (e) => {
             e.stopPropagation();
-            toggleChampionStatus(index);
+            setConferenceChampion(team);
         };
-        
+
         const upButton = document.createElement('button');
         upButton.className = 'arrow-button up';
-        upButton.innerHTML = '↑';
+        upButton.textContent = '↑';
+        upButton.setAttribute('aria-label', `Move ${team.name} up`);
         upButton.disabled = index === 0;
         upButton.onclick = (e) => {
             e.stopPropagation();
-            moveTeamUp(index);
+            moveTeam(index, index - 1);
         };
-        
+
         const downButton = document.createElement('button');
         downButton.className = 'arrow-button down';
-        downButton.innerHTML = '↓';
+        downButton.textContent = '↓';
+        downButton.setAttribute('aria-label', `Move ${team.name} down`);
         downButton.disabled = index === rankings.length - 1;
         downButton.onclick = (e) => {
             e.stopPropagation();
-            moveTeamDown(index);
+            moveTeam(index, index + 1);
         };
-        
-        arrowButtons.appendChild(trophyButton);
-        arrowButtons.appendChild(upButton);
-        arrowButtons.appendChild(downButton);
+
+        arrowButtons.append(trophyButton, upButton, downButton);
         teamCard.appendChild(arrowButtons);
 
-        teamCard.addEventListener('contextmenu', function(e) {
+        // Desktop shortcut: right-click toggles conference champion.
+        teamCard.addEventListener('contextmenu', (e) => {
             e.preventDefault();
-
-            // Don't allow changing champion status for Ind or Pac-12
-            if (team.conference === 'Ind' || team.conference === 'Pac-12') {
-                return;
-            }
-
-            // Toggle conference champion status
-            if (team.champ) {
-                // If already a champion, remove champion status
-                team.champ = false;
-            } else {
-                // Set this team as conference champion and remove from others in same conference
-                for (let i = 0; i < rankings.length; i++) {
-                    if (rankings[i].conference === team.conference) {
-                        rankings[i].champ = false;
-                    }
-                }
-                team.champ = true;
-            }
-            
-            renderRankings();
-            updateBracket();
+            setConferenceChampion(team, true);
         });
-
-        const wrapper = document.createElement('div');
-        wrapper.style.display = 'flex';
-        wrapper.style.alignItems = 'center';
-        wrapper.appendChild(rankingNumber);
-        wrapper.appendChild(teamCard);
 
         teamCard.addEventListener('dragstart', handleDragStart);
         teamCard.addEventListener('dragend', handleDragEnd);
         teamCard.addEventListener('dragover', handleDragOver);
         teamCard.addEventListener('drop', handleDrop);
 
+        const wrapper = document.createElement('div');
+        wrapper.className = 'ranking-row';
+        wrapper.append(rankingNumber, teamCard);
         rankingsList.appendChild(wrapper);
     });
 }
 
-function renderBracket() {
-    // Update first round rendering with bowl logos
-    const firstRound = document.getElementById('first-round');
-    firstRound.innerHTML = bracket.firstRound.map((matchup, index) => `
-        <div class="matchup" data-round="firstRound" data-index="${index}">
-            <div class="team-slot ${isWinner('firstRound', index, matchup.higher) ? 'winner' : ''}"
-                 onclick="handleTeamSelect('firstRound', ${index}, 'higher')">
-                <img src="${matchup.higher.logo}" alt="" class="bracket-team-logo">
-                <span>${matchup.higher.seed} ${matchup.higher.name}</span>
-            </div>
-            <div class="team-slot ${isWinner('firstRound', index, matchup.lower) ? 'winner' : ''}"
-                 onclick="handleTeamSelect('firstRound', ${index}, 'lower')">
-                <img src="${matchup.lower.logo}" alt="" class="bracket-team-logo">
-                <span>${matchup.lower.seed} ${matchup.lower.name}</span>
-            </div>
-        </div>
-    `).join('');
+// One clickable team slot. Empty slots render a dash and ignore clicks.
+function slotHTML(team, gameIndex, side, winnerName) {
+    const isWinner = team && team.name === winnerName;
+    const content = team
+        ? `${logoImg(team.logo, 'bracket-team-logo')}<span>${team.seed} ${team.name}</span>`
+        : '-';
+    return `<div class="team-slot ${isWinner ? 'winner' : ''}" data-game="${gameIndex}" data-side="${side}">${content}</div>`;
+}
 
-    // Update quarterfinals rendering with bowl logos
-    const quarterfinals = document.getElementById('quarterfinals');
-    quarterfinals.innerHTML = bracket.quarterfinals.map((matchup, index) => {
-        return `
-            <div class="matchup" data-round="quarterfinals" data-index="${index}">
-                <div class="team-slot ${isWinner('quarterfinals', index, matchup.higher) ? 'winner' : ''}"
-                     onclick="handleTeamSelect('quarterfinals', ${index}, 'higher')">
-                    <img src="${matchup.higher.logo}" alt="" class="bracket-team-logo">
-                    <span>${matchup.higher.seed} ${matchup.higher.name}</span>
-                </div>
-                <div class="team-slot ${isWinner('quarterfinals', index, matchup.winner) ? 'winner' : ''}"
-                     onclick="handleTeamSelect('quarterfinals', ${index}, 'winner')">
-                    ${matchup.winner ? `
-                        <img src="${matchup.winner.logo}" alt="" class="bracket-team-logo">
-                        <span>${matchup.winner.seed} ${matchup.winner.name}</span>
-                    ` : '-'}
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    // Update semifinals rendering
-    const semifinals = document.getElementById('semifinals');
-    semifinals.innerHTML = bracket.semifinals.map((matchup, index) => {
-        return `
-        <div class="matchup" data-round="semifinals" data-index="${index}">
-            <div class="team-slot ${isWinner('semifinals', index, matchup?.team1) ? 'winner' : ''}"
-                 onclick="handleTeamSelect('semifinals', ${index}, 'team1')">
-                ${matchup?.team1 ? `
-                    <img src="${matchup.team1.logo}" alt="" class="bracket-team-logo">
-                    <span>${matchup.team1.seed} ${matchup.team1.name}</span>
-                ` : '-'}
-            </div>
-            <div class="team-slot ${isWinner('semifinals', index, matchup?.team2) ? 'winner' : ''}"
-                 onclick="handleTeamSelect('semifinals', ${index}, 'team2')">
-                ${matchup?.team2 ? `
-                    <img src="${matchup.team2.logo}" alt="" class="bracket-team-logo">
-                    <span>${matchup.team2.seed} ${matchup.team2.name}</span>
-                ` : '-'}
-            </div>
-        </div>
-    `}).join('');
-
-    // Update championship rendering
-    const championship = document.getElementById('championship');
-    championship.innerHTML = `
+function matchupHTML(game, gameIndex) {
+    const winnerName = picks[gameIndex];
+    return `
         <div class="matchup">
-            <div class="team-slot ${isWinner('championship', 0, bracket.championship?.team1) ? 'winner' : ''}"
-                 onclick="handleTeamSelect('championship', 0, 'team1')">
-                ${bracket.championship?.team1 ? `
-                    <img src="${bracket.championship.team1.logo}" alt="" class="bracket-team-logo">
-                    <span>${bracket.championship.team1.seed} ${bracket.championship.team1.name}</span>
-                ` : '-'}
-            </div>
-            <div class="team-slot ${isWinner('championship', 0, bracket.championship?.team2) ? 'winner' : ''}"
-                 onclick="handleTeamSelect('championship', 0, 'team2')">
-                ${bracket.championship?.team2 ? `
-                    <img src="${bracket.championship.team2.logo}" alt="" class="bracket-team-logo">
-                    <span>${bracket.championship.team2.seed} ${bracket.championship.team2.name}</span>
-                ` : '-'}
-            </div>
-        </div>
-    `;
+            ${slotHTML(game.a, gameIndex, 'a', winnerName)}
+            ${slotHTML(game.b, gameIndex, 'b', winnerName)}
+        </div>`;
+}
 
-    // Update champion display with logo
+function renderBracket() {
+    const { games, champion } = computeGames();
+    const renderRange = (id, from, to) => {
+        document.getElementById(id).innerHTML =
+            games.slice(from, to).map((g, i) => matchupHTML(g, from + i)).join('');
+    };
+
+    renderRange('first-round', 0, 4);
+    renderRange('quarterfinals', 4, 8);
+    renderRange('semifinals', 8, 10);
+    renderRange('championship', 10, 11);
+
     const championDisplay = document.getElementById('champion-display');
-    if (bracket.champion) {
+    if (champion) {
         championDisplay.innerHTML = `
-            <img src="${bracket.champion.logo}" alt="" class="champion-team-logo">
+            ${logoImg(champion.logo, 'champion-team-logo')}
             <div>CHAMPION</div>
-            <div class="champion-name">
-                ${bracket.champion.name}
-            </div>
+            <div class="champion-name">${champion.name}</div>
         `;
         championDisplay.classList.add('show');
     } else {
@@ -400,169 +326,369 @@ function renderBracket() {
         championDisplay.classList.remove('show');
     }
 }
-  
-  // Helper function to create champion display if it doesn't exist
-  function createChampionDisplay() {
-      const championDisplay = document.createElement('div');
-      championDisplay.id = 'champion-display';
-      championDisplay.className = 'champion-display';
-      document.querySelector('.bracket').appendChild(championDisplay);
-      return championDisplay;
-  }
-  
-  // Modified handleTeamSelect function
-  function handleTeamSelect(round, index, position) {
-      if (round === 'firstRound') {
-          const matchup = bracket.firstRound[index];
-          const winner = position === 'higher' ? matchup.higher : matchup.lower;
-          
-          // Map first round winners to correct quarterfinal games
-          let quarterfinalsIndex;
-          switch(index) {
-              case 0: // 8v9 winner goes to QF Game 1 (vs 1 seed)
-                  quarterfinalsIndex = 0;
-                  break;
-              case 1: // 5v12 winner goes to QF Game 2 (vs 4 seed)
-                  quarterfinalsIndex = 1;
-                  break;
-              case 2: // 7v10 winner goes to QF Game 3 (vs 2 seed)
-                  quarterfinalsIndex = 2;
-                  break;
-              case 3: // 6v11 winner goes to QF Game 4 (vs 3 seed)
-                  quarterfinalsIndex = 3;
-                  break;
-          }
-          bracket.quarterfinals[quarterfinalsIndex].winner = winner;
-      } else if (round === 'quarterfinals') {
-          const matchup = bracket.quarterfinals[index];
-          const winner = position === 'higher' ? matchup.higher : matchup.winner;
-          if (!winner) return; // Don't proceed if winner isn't available
-          
-          const semifinalsIndex = Math.floor(index/2);
-          if (!bracket.semifinals[semifinalsIndex]) {
-              bracket.semifinals[semifinalsIndex] = {};
-          }
-          if (index % 2 === 0) {
-              bracket.semifinals[semifinalsIndex].team1 = winner;
-          } else {
-              bracket.semifinals[semifinalsIndex].team2 = winner;
-          }
-      } else if (round === 'semifinals') {
-          const matchup = bracket.semifinals[index];
-          const winner = position === 'team1' ? matchup.team1 : matchup.team2;
-          if (!winner) return;
-          
-          if (!bracket.championship) {
-              bracket.championship = {};
-          }
-          if (index === 0) {
-              bracket.championship.team1 = winner;
-          } else {
-              bracket.championship.team2 = winner;
-          }
-      } else   if (round === 'championship') {
-          const winner = position === 'team1' ? bracket.championship.team1 : bracket.championship.team2;
-          if (!winner) return;
-          bracket.champion = winner;
-      }
-      renderBracket();
-  }
-  
- // Modified isWinner function
-function isWinner(round, index, team) {
-    if (!team) return false;
-    
-    if (round === 'firstRound') {
-        // Old incorrect logic that only worked for first game:
-        // const quarterfinalsIndex = Math.floor(index/2);
-        
-        // New logic: Each first round winner goes to their specific quarterfinal game
-        // Game 0 (8v9) winner goes to QF Game 0 (vs 1 seed)
-        // Game 1 (5v12) winner goes to QF Game 1 (vs 4 seed)
-        // Game 2 (7v10) winner goes to QF Game 2 (vs 2 seed)
-        // Game 3 (6v11) winner goes to QF Game 3 (vs 3 seed)
-        return bracket.quarterfinals[index]?.winner?.id === team.id;
-    } else if (round === 'quarterfinals') {
-        const semifinalsIndex = Math.floor(index/2);
-        return bracket.semifinals[semifinalsIndex]?.team1?.id === team.id || 
-               bracket.semifinals[semifinalsIndex]?.team2?.id === team.id;
-    } else if (round === 'semifinals') {
-        return bracket.championship?.team1?.id === team.id || 
-               bracket.championship?.team2?.id === team.id;
-    } else if (round === 'championship') {
-        return bracket.champion?.id === team.id;
-    }
-    return false;
+
+// Event delegation: one listener for every bracket slot, so re-rendering
+// the bracket HTML never has to re-wire click handlers.
+document.querySelector('.bracket-container').addEventListener('click', (e) => {
+    const slot = e.target.closest('.team-slot[data-game]');
+    if (!slot) return;
+    pickWinner(Number(slot.dataset.game), slot.dataset.side);
+});
+
+/* ------------------------------------------------------------------ */
+/* Drag and drop (desktop; touch devices use the arrow buttons)       */
+/* ------------------------------------------------------------------ */
+
+let draggedIndex = null;
+
+function handleDragStart(e) {
+    draggedIndex = parseInt(e.currentTarget.dataset.index, 10);
+    e.currentTarget.classList.add('dragging');
 }
-  // Reset bracket function
-  function resetBracket() {
-      bracket = {
-          firstRound: [],
-          quarterfinals: [],
-          semifinals: [
-              { team1: null, team2: null },
-              { team1: null, team2: null }
-          ],
-          championship: null,
-          champion: null
-      };
-      updateBracket();
-  }
-  
-  // Existing drag and drop handlers
-  let draggedIndex = null;
-  
-  function handleDragStart(e) {
-      draggedIndex = parseInt(e.target.dataset.index);
-      e.target.classList.add('dragging');
-  }
-  
-  function handleDragEnd(e) {
-      e.target.classList.remove('dragging');
-  }
-  
-  function handleDragOver(e) {
-      e.preventDefault();
-  }
-  
 
+function handleDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+}
 
-  function handleDrop(e) {
-      e.preventDefault();
-      const dropIndex = parseInt(e.target.closest('.team-card').dataset.index);
-      
-      if (draggedIndex !== null && draggedIndex !== dropIndex) {
-          const newRankings = [...rankings];
-          const [draggedTeam] = newRankings.splice(draggedIndex, 1);
-          newRankings.splice(dropIndex, 0, draggedTeam);
-          rankings = newRankings;
-          renderRankings();
-          updateBracket();
-      }
-      draggedIndex = null;
-  }
-  
-  function resetBracket() {
-      bracket = {
-          firstRound: [],
-          quarterfinals: [],
-          semifinals: [
-              { team1: null, team2: null },
-              { team1: null, team2: null }
-          ],
-          championship: null,
-          champion: null
-      };
-      updateBracket();
-      
-      // Reset champion display
-      const championDisplay = document.getElementById('champion-display');
-      championDisplay.classList.remove('show');
-  }
-  
+function handleDragOver(e) {
+    e.preventDefault();
+}
 
+function handleDrop(e) {
+    e.preventDefault();
+    const dropIndex = parseInt(e.currentTarget.dataset.index, 10);
+    if (draggedIndex !== null) moveTeam(draggedIndex, dropIndex);
+    draggedIndex = null;
+}
 
-  
-  // Initial render
-  renderRankings();
-  updateBracket();
+/* ------------------------------------------------------------------ */
+/* State serialization (share links + localStorage)                   */
+/* ------------------------------------------------------------------ */
+/*
+ * Query format:  ?r=<order>&c=<champs>&p=<picks>
+ *   r  base64url of team names joined by '|'. Names, not ids, because ids
+ *      are re-assigned every week when rankings.json regenerates.
+ *   c  comma-separated indices (into r) of conference champions.
+ *   p  11 chars, one per game: 'a' / 'b' for the picked side, '-' for none.
+ *      Sides rather than names keep links short; they are replayed in game
+ *      order so each round resolves against the round before it.
+ */
+
+function toBase64Url(text) {
+    const bytes = new TextEncoder().encode(text);
+    let binary = '';
+    bytes.forEach(b => { binary += String.fromCharCode(b); });
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function fromBase64Url(encoded) {
+    const b64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
+    return new TextDecoder().decode(Uint8Array.from(binary, ch => ch.charCodeAt(0)));
+}
+
+function serializeState() {
+    const { games } = computeGames();
+    const pickSides = picks.map((name, i) => {
+        if (!name) return '-';
+        return games[i].a?.name === name ? 'a' : 'b';
+    }).join('');
+
+    const params = new URLSearchParams();
+    params.set('r', toBase64Url(rankings.map(t => t.name).join('|')));
+    params.set('c', rankings.map((t, i) => (t.champ ? i : null)).filter(i => i !== null).join(','));
+    params.set('p', pickSides);
+    return params.toString();
+}
+
+// Applies a serialized state on top of freshly loaded rankings. Returns
+// false if the payload is unusable; returns { partial: true } when some
+// shared teams are no longer in this week's rankings.
+function applySerializedState(query, sourceData) {
+    const params = new URLSearchParams(query);
+    if (!params.has('r')) return false;
+
+    let names;
+    try {
+        names = fromBase64Url(params.get('r')).split('|').filter(Boolean);
+    } catch {
+        return false; // malformed / hand-edited link
+    }
+
+    const byName = new Map(sourceData.map(t => [t.name, { ...t }]));
+    const champIndices = new Set(
+        (params.get('c') || '').split(',').filter(Boolean).map(Number)
+    );
+
+    const ordered = [];
+    names.forEach((name, i) => {
+        const team = byName.get(name);
+        if (!team) return;
+        team.champ = champIndices.has(i) && !NON_CHAMP_CONFERENCES.has(team.conference);
+        ordered.push(team);
+        byName.delete(name);
+    });
+    if (ordered.length === 0) return false;
+
+    // Teams new to this week's rankings go to the bottom, non-champion,
+    // so the shared order is preserved as closely as possible.
+    const extras = [...byName.values()].map(t => ({ ...t, champ: false }));
+    const partial = extras.length > 0 || ordered.length !== names.length;
+    rankings = [...ordered, ...extras];
+
+    // Replay picks game by game: each pick is resolved against the
+    // matchups produced by the picks before it.
+    picks = Array(GAME_COUNT).fill(null);
+    const sides = (params.get('p') || '').slice(0, GAME_COUNT);
+    for (let i = 0; i < sides.length; i++) {
+        const side = sides[i];
+        if (side !== 'a' && side !== 'b') continue;
+        const { games } = computeGames();
+        const team = games[i][side];
+        if (team) picks[i] = team.name;
+    }
+
+    return { partial };
+}
+
+function persistState() {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            fingerprint: dataFingerprint,
+            query: serializeState(),
+        }));
+    } catch {
+        // Storage unavailable (private mode, blocked cookies): the app
+        // still works, it just won't remember picks between visits.
+    }
+}
+
+function loadSavedState() {
+    try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    } catch {
+        return null;
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* Sharing                                                            */
+/* ------------------------------------------------------------------ */
+
+function shareUrl() {
+    return `${SITE_URL}?${serializeState()}`;
+}
+
+function shareText() {
+    const { champion } = computeGames();
+    return champion
+        ? `My CFP bracket: ${champion.name} wins it all 🏆 Build yours:`
+        : 'Build your College Football Playoff bracket:';
+}
+
+async function shareLink() {
+    const url = shareUrl();
+    const text = shareText();
+    trackEvent('share-link', 'Share link');
+
+    // Native share sheet on phones; desktop browsers mostly lack it.
+    if (navigator.share) {
+        try {
+            await navigator.share({ title: 'CFP Bracket', text, url });
+            return;
+        } catch (err) {
+            if (err.name === 'AbortError') return; // user closed the sheet
+        }
+    }
+
+    try {
+        await navigator.clipboard.writeText(`${text} ${url}`);
+        showToast('Link copied — paste it anywhere');
+    } catch {
+        // Clipboard API blocked (e.g. insecure context): fall back to a
+        // prompt so the user can still copy manually.
+        window.prompt('Copy your bracket link:', url);
+    }
+}
+
+const HTML2CANVAS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+
+// html2canvas is ~200KB and only needed when someone saves an image, so it
+// is loaded on first use instead of on every page view.
+function loadHtml2Canvas() {
+    if (window.html2canvas) return Promise.resolve(window.html2canvas);
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = HTML2CANVAS_SRC;
+        script.onload = () => resolve(window.html2canvas);
+        script.onerror = () => reject(new Error('Failed to load html2canvas'));
+        document.head.appendChild(script);
+    });
+}
+
+async function saveImage() {
+    const button = document.getElementById('save-image-button');
+    button.disabled = true;
+    trackEvent('save-image', 'Save image');
+
+    try {
+        const html2canvas = await loadHtml2Canvas();
+        const bracketEl = document.querySelector('.bracket');
+        const scale = 2;
+        // Height of the shrink-wrapped clone, measured in onclone below.
+        let contentHeight = null;
+
+        const rendered = await html2canvas(bracketEl, {
+            backgroundColor: '#1a1a1a',
+            scale,
+            useCORS: true,
+            // On phones the bracket scrolls horizontally; un-clip the clone
+            // so the image contains every round, and stamp the site URL on
+            // it so a reposted screenshot still points back here.
+            onclone: (doc) => {
+                // Lets style.css swap effects html2canvas can't draw
+                // (gradient text, transitions) for flat equivalents.
+                doc.body.classList.add('capturing');
+                const clone = doc.querySelector('.bracket');
+                clone.style.width = 'max-content';
+                clone.style.overflow = 'visible';
+                // On short mobile pages the panel is stretched to fill the
+                // viewport (flex item); shrink-wrap it so the image doesn't
+                // carry a band of empty space below the bracket.
+                clone.style.alignSelf = 'flex-start';
+                clone.style.height = 'auto';
+                clone.style.minHeight = '0';
+                clone.querySelector('.bracket-container').style.overflow = 'visible';
+                const watermark = doc.createElement('div');
+                watermark.className = 'image-watermark';
+                watermark.textContent = 'cfp-bracket.pdot.dev';
+                clone.appendChild(watermark);
+                // Elements marked data-html2canvas-ignore (share bar,
+                // instructions) are already removed from the clone, so this
+                // measures only what will be drawn.
+                contentHeight = clone.getBoundingClientRect().height;
+            },
+        });
+
+        // html2canvas sizes its canvas from the *live* element, which on
+        // phones is stretched to the viewport height, so crop the result
+        // to the clone's real content height.
+        let canvas = rendered;
+        const croppedHeight = contentHeight ? Math.ceil(contentHeight * scale) : rendered.height;
+        if (croppedHeight < rendered.height) {
+            canvas = document.createElement('canvas');
+            canvas.width = rendered.width;
+            canvas.height = croppedHeight;
+            canvas.getContext('2d').drawImage(rendered, 0, 0);
+        }
+
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        const file = new File([blob], 'my-cfp-bracket.png', { type: 'image/png' });
+
+        // Mobile: hand the image straight to the share sheet (X, Messages,
+        // Photos). Elsewhere: plain download.
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({ files: [file], text: `${shareText()} ${SITE_URL}` });
+                return;
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+            }
+        }
+
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = file.name;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+        showToast('Bracket image saved');
+    } catch (err) {
+        console.error(err);
+        showToast("Couldn't create the image — try again");
+    } finally {
+        button.disabled = false;
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* Small utilities                                                    */
+/* ------------------------------------------------------------------ */
+
+let toastTimer = null;
+function showToast(message, durationMs = 2500) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), durationMs);
+}
+
+// GoatCounter custom event. No-ops if the analytics script is blocked or
+// not yet loaded, so tracking can never break the app.
+function trackEvent(path, title) {
+    try {
+        window.goatcounter?.count?.({ path, title, event: true });
+    } catch {
+        /* analytics are best-effort */
+    }
+}
+
+function slugify(text) {
+    return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+/* ------------------------------------------------------------------ */
+/* Boot                                                               */
+/* ------------------------------------------------------------------ */
+
+function showLoadError() {
+    document.getElementById('rankings-list').innerHTML =
+        '<div class="load-error">Couldn\'t load this week\'s rankings. Please refresh the page.</div>';
+}
+
+fetch('/rankings.json')
+    .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    })
+    .then(data => {
+        dataFingerprint = data.map(t => `${t.name}:${t.record}`).join('|');
+        officialRankings = data;
+        rankings = data.map(t => ({ ...t }));
+
+        // Priority: a shared link in the URL, then this browser's saved
+        // bracket (only if built on the same rankings), then the defaults.
+        const urlQuery = window.location.search;
+        let appliedFromUrl = false;
+        if (urlQuery.includes('r=')) {
+            const result = applySerializedState(urlQuery, data);
+            appliedFromUrl = Boolean(result);
+            if (result?.partial) {
+                showToast('Rankings have updated since this bracket was shared', 4500);
+            } else if (!result) {
+                showToast('That bracket link looks broken — showing your bracket instead', 4500);
+            }
+            // Clean the URL so a refresh doesn't re-apply the link over
+            // edits made since; the state is persisted below instead.
+            history.replaceState(null, '', window.location.pathname);
+        }
+
+        // A broken link falls through to the saved bracket rather than
+        // overwriting it with defaults.
+        if (!appliedFromUrl) {
+            const saved = loadSavedState();
+            if (saved && saved.fingerprint === dataFingerprint) {
+                applySerializedState(saved.query, data);
+            } else if (saved) {
+                showToast("New rankings are out — here's this week's bracket", 4500);
+            }
+        }
+
+        renderRankings();
+        renderBracket();
+        persistState();
+    })
+    .catch(error => {
+        console.error('Failed to load rankings:', error);
+        showLoadError();
+    });

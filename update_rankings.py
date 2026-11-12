@@ -8,21 +8,26 @@ Requires a free API key from https://collegefootballdata.com/key, passed
 via the CFBD_API_KEY environment variable (never hardcode it).
 """
 
+import io
 import json
 import os
 import re
 import sys
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
 import cfbd
 from cfbd.rest import ApiException
+from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parent
 RANKINGS_PATH = REPO_ROOT / "rankings.json"
 LOGO_DIR = REPO_ROOT / "team-logos"
 
 TOP_N = 25
+LOGO_MAX_PX = 256
 MAX_CHAMPS = 5
 
 # Teams whose default kebab-case slug wouldn't match the local logo
@@ -122,6 +127,10 @@ def fetch_best_poll(api_client, year):
     for week in weeks_by_recency:
         for poll in week.polls:
             if poll.ranks and "playoff" in poll.poll.lower():
+                # Logging the week makes a stale result (CFBD not yet
+                # updated after Tuesday's reveal) obvious in the Actions log.
+                log(f"Found '{poll.poll}' in week {week.week} "
+                    f"(latest week with any poll: {weeks_by_recency[0].week}).")
                 return poll.poll, poll.ranks
 
     latest_week = weeks_by_recency[0]
@@ -163,6 +172,34 @@ def fetch_records(api_client, year):
     return out
 
 
+def download_logo(url, dest):
+    """Fetch a logo into team-logos/. Returns True on success.
+
+    Logos are cached locally rather than hot-linked because the CFBD CDN
+    sends no CORS headers: cross-origin images can't be drawn into the
+    canvas used by the site's "Save image" feature, and hot-linking also
+    ties the live site to a third-party CDN's uptime.
+    """
+    try:
+        with urllib.request.urlopen(url, timeout=20) as resp:
+            data = resp.read()
+    except (urllib.error.URLError, TimeoutError) as e:
+        log(f"WARNING: failed to download logo {url}: {e}")
+        return False
+    # Cheap sanity check so an HTML error page never lands as a .png.
+    if not data.startswith(b"\x89PNG"):
+        log(f"WARNING: {url} did not return a PNG; not caching it.")
+        return False
+    # Cap at 256px: the largest on-site use is the ~100px champion card,
+    # so 256 covers 2x retina while keeping each file small (CFBD serves
+    # 500px originals, and every visitor downloads every ranked logo).
+    img = Image.open(io.BytesIO(data)).convert("RGBA")
+    img.thumbnail((LOGO_MAX_PX, LOGO_MAX_PX), Image.LANCZOS)
+    img.save(dest, optimize=True)
+    log(f"Cached new logo {dest.name}.")
+    return True
+
+
 def resolve_logo(team_name, team_directory):
     slug = slugify(team_name)
     local_path = LOGO_DIR / f"{slug}.png"
@@ -171,6 +208,10 @@ def resolve_logo(team_name, team_directory):
 
     team = team_directory.get(team_name)
     if team and team.logos:
+        if download_logo(team.logos[0], local_path):
+            return f"/team-logos/{slug}.png"
+        # Download failed: hot-link so the site still shows a logo; the
+        # next weekly run will retry caching it.
         return team.logos[0]
 
     log(f"WARNING: no local or CFBD logo found for '{team_name}' (slug '{slug}').")

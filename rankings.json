@@ -4,7 +4,7 @@
     "name": "Georgia",
     "conference": "SEC",
     "logo": "/team-logos/georgia.png",
-    "record": "8-1",
+    "record": "9-1",
     "champ": true
   },
   {
@@ -12,7 +12,7 @@
     "name": "Utah",
     "conference": "Big 12",
     "logo": "/team-logos/utah.png",
-    "record": "9-0",
+    "record": "10-0",
     "champ": true
   },
   {
@@ -20,7 +20,7 @@
     "name": "Alabama",
     "conference": "SEC",
     "logo": "/team-logos/alabama.png",
-    "record": "7-2",
+    "record": "8-2",
     "champ": false
   },
   {
@@ -28,23 +28,23 @@
     "name": "UCLA",
     "conference": "Big Ten",
     "logo": "/team-logos/ucla.png",
-    "record": "9-0",
+    "record": "10-0",
     "champ": true
   },
   {
     "id": 5,
-    "name": "Notre Dame",
-    "conference": "Ind",
-    "logo": "/team-logos/notre-dame.png",
-    "record": "8-1",
+    "name": "Texas",
+    "conference": "SEC",
+    "logo": "/team-logos/texas.png",
+    "record": "8-2",
     "champ": false
   },
   {
     "id": 6,
-    "name": "Texas",
-    "conference": "SEC",
-    "logo": "/team-logos/texas.png",
-    "record": "7-2",
+    "name": "Notre Dame",
+    "conference": "Ind",
+    "logo": "/team-logos/notre-dame.png",
+    "record": "9-1",
     "champ": false
   },
   {
@@ -52,23 +52,23 @@
     "name": "Miami",
     "conference": "ACC",
     "logo": "/team-logos/miami.png",
-    "record": "8-1",
+    "record": "9-1",
     "champ": true
   },
   {
     "id": 8,
-    "name": "Tennessee",
-    "conference": "SEC",
-    "logo": "/team-logos/tennessee.png",
-    "record": "7-2",
+    "name": "Indiana",
+    "conference": "Big Ten",
+    "logo": "/team-logos/indiana.png",
+    "record": "9-1",
     "champ": false
   },
   {
     "id": 9,
-    "name": "Indiana",
-    "conference": "Big Ten",
-    "logo": "/team-logos/indiana.png",
-    "record": "8-1",
+    "name": "Tennessee",
+    "conference": "SEC",
+    "logo": "/team-logos/tennessee.png",
+    "record": "8-2",
     "champ": false
   },
   {
@@ -76,15 +76,15 @@
     "name": "BYU",
     "conference": "Big 12",
     "logo": "/team-logos/byu.png",
-    "record": "7-2",
+    "record": "8-2",
     "champ": false
   },
   {
     "id": 11,
-    "name": "Kentucky",
-    "conference": "SEC",
-    "logo": "/team-logos/kentucky.png",
-    "record": "7-2",
+    "name": "Wake Forest",
+    "conference": "ACC",
+    "logo": "/team-logos/wake-forest.png",
+    "record": "9-1",
     "champ": false
   },
   {
@@ -92,23 +92,23 @@
     "name": "Texas Tech",
     "conference": "Big 12",
     "logo": "/team-logos/texas-tech.png",
-    "record": "8-1",
+    "record": "9-1",
     "champ": false
   },
   {
     "id": 13,
-    "name": "Wake Forest",
-    "conference": "ACC",
-    "logo": "/team-logos/wake-forest.png",
-    "record": "8-1",
+    "name": "Oregon",
+    "conference": "Big Ten",
+    "logo": "/team-logos/oregon.png",
+    "record": "7-3",
     "champ": false
   },
   {
     "id": 14,
-    "name": "Houston",
-    "conference": "Big 12",
-    "logo": "/team-logos/houston.png",
-    "record": "7-2",
+    "name": "Ohio State",
+    "conference": "Big Ten",
+    "logo": "/team-logos/ohio-state.png",
+    "record": "7-3",
     "champ": false
   },
   {
@@ -116,87 +116,87 @@
     "name": "Iowa",
     "conference": "Big Ten",
     "logo": "/team-logos/iowa.png",
-    "record": "7-2",
+    "record": "8-2",
     "champ": false
   },
   {
     "id": 16,
-    "name": "Oregon",
-    "conference": "Big Ten",
-    "logo": "/team-logos/oregon.png",
-    "record": "6-3",
+    "name": "Kentucky",
+    "conference": "SEC",
+    "logo": "/team-logos/kentucky.png",
+    "record": "7-3",
     "champ": false
   },
   {
     "id": 17,
-    "name": "South Carolina",
-    "conference": "SEC",
-    "logo": "/team-logos/south-carolina.png",
-    "record": "6-3",
-    "champ": false
+    "name": "Boise State",
+    "conference": "Pac-12",
+    "logo": "/team-logos/boise-state.png",
+    "record": "9-1",
+    "champ": true
   },
   {
     "id": 18,
     "name": "USC",
     "conference": "Big Ten",
     "logo": "/team-logos/usc.png",
-    "record": "7-2",
+    "record": "7-3",
     "champ": false
   },
   {
     "id": 19,
-    "name": "Ole Miss",
-    "conference": "SEC",
-    "logo": "/team-logos/ole-miss.png",
-    "record": "6-3",
+    "name": "Arizona",
+    "conference": "Big 12",
+    "logo": "/team-logos/arizona.png",
+    "record": "7-3",
     "champ": false
   },
   {
     "id": 20,
-    "name": "Ohio State",
-    "conference": "Big Ten",
-    "logo": "/team-logos/ohio-state.png",
-    "record": "6-3",
+    "name": "Houston",
+    "conference": "Big 12",
+    "logo": "/team-logos/houston.png",
+    "record": "7-3",
     "champ": false
   },
   {
     "id": 21,
-    "name": "LSU",
+    "name": "South Carolina",
     "conference": "SEC",
-    "logo": "/team-logos/lsu.png",
-    "record": "6-3",
+    "logo": "/team-logos/south-carolina.png",
+    "record": "6-4",
     "champ": false
   },
   {
     "id": 22,
-    "name": "Missouri",
+    "name": "Oklahoma",
     "conference": "SEC",
-    "logo": "/team-logos/missouri.png",
-    "record": "6-3",
+    "logo": "/team-logos/oklahoma.png",
+    "record": "6-4",
     "champ": false
   },
   {
     "id": 23,
-    "name": "Arizona",
-    "conference": "Big 12",
-    "logo": "/team-logos/arizona.png",
-    "record": "7-2",
+    "name": "Louisville",
+    "conference": "ACC",
+    "logo": "/team-logos/louisville.png",
+    "record": "7-3",
     "champ": false
   },
   {
     "id": 24,
-    "name": "Boise State",
-    "conference": "Pac-12",
-    "logo": "/team-logos/boise-state.png",
-    "record": "8-1",
-    "champ": true
+    "name": "Florida",
+    "conference": "SEC",
+    "logo": "/team-logos/florida.png",
+    "record": "6-4",
+    "champ": false
   },
   {
     "id": 25,
-    "name": "Oklahoma State",
-    "conference": "Big 12",
-    "logo": "/team-logos/oklahoma-state.png",
-    "record": "6-3",
+    "name": "Ole Miss",
+    "conference": "SEC",
+    "logo": "/team-logos/ole-miss.png",
+    "record": "6-4",
     "champ": false
   }
 ]
